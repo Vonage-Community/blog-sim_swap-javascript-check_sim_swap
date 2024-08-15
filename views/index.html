@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <script src="client.js" defer></script>
+    <nav>
+        <img alt="Vonage logo" id="vonage-logo" src="VonagePOE_Primary.png">
+    </nav>
+    <h2>Login Form</h2>
+
+    <form id="loginForm" method="post">
+        <div class="container">
+            <label for="username"><b>Username</b></label>
+            <input type="text" placeholder="Enter Username" id="username" value="user1" autocomplete="user1" required />
+            <label for="password"><b>Password</b></label>
+            <input type="password" placeholder="Enter Password" id="password"  autocomplete="123" value="123" required />
+            <button type="submit">Login</button>
+            <label id="message"><b></b></label>
+        </div>
+    </form>
+
+    <div id="modalSwapped" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p><b>Warning! A recent SIM swap was detected on your account. Access denied.</b></p>
+            <button class="cancelbtn" onclick="window.location.reload();">OK</button>
+        </div>
+    </div>
+
+</body>
+</html>
