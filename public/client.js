@@ -39,20 +39,17 @@ document.addEventListener("DOMContentLoaded", function () {
       const password = passwordInput.value.trim();
 
       try {
-        const simCheckResponse = await sendData("/simswap", { username });
-        if (simCheckResponse.swapped) {
+        const loginResponse = await sendData("/login", {
+          username,
+          password,
+        });
+        if (loginResponse.message == "SIM Swapped") {
           showModal(); // Show warning modal if SIM swapped
+        }
+        else if (loginResponse.message !== "Success") {
+          alert("Invalid username or password.");
         } else {
-          // If not swapped, proceed with login
-          const loginResponse = await sendData("/login", {
-            username,
-            password,
-          });
-          if (loginResponse.message !== "Success") {
-            alert("Invalid username or password.");
-          } else {
-            window.location.href = "/main";
-          }
+          window.location.href = "/main";
         }
       } catch (error) {
         console.error("Error during login:", error);

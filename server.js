@@ -10,7 +10,7 @@ app.use(express.static("public"));
 // world example you'd have to store your credentials safely.
 const users = {
   user1: {
-    username: process.env.PHONE_NUMBER,
+    username: "user1",
     password: "123",
     phoneNumber: process.env.PHONE_NUMBER,
   },
@@ -26,6 +26,7 @@ app.get("/main", (req, res) => {
   res.sendFile(path.join(__dirname, "views/main.html"));
 });
 
+const scope = "openid dpv:FraudPreventionAndDetection#check-sim-swap";
 const authReqUrl = "https://api-eu.vonage.com/oauth2/bc-authorize";
 const tokenUrl = "https://api-eu.vonage.com/oauth2/token";
 const simSwapApiUrl = "https://api-eu.vonage.com/camara/sim-swap/v040/check";
@@ -62,49 +63,48 @@ async function authenticate(phone, scope) {
 }
 
 async function checkSim(phoneNumber) {
-  const accessToken = await authenticate(
-    phoneNumber,
-    "dpv:FraudPreventionAndDetection#check-sim-swap"
-  );
-  const response = await axios.post(
-    simSwapApiUrl,
-    {
-      phoneNumber: phoneNumber,
-      maxAge: process.env.MAX_AGE,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+  const accessToken = await authenticate(phoneNumber, scope);
+  try {
+    const response = await axios.post(
+      simSwapApiUrl,
+      {
+        phoneNumber: phoneNumber,
+        maxAge: process.env.MAX_AGE,
       },
-    }
-  );
-  return response.data.swapped;
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data.swapped;
+  } catch (error) {
+    console.error(
+      "SIM swap check error:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
 }
 
-app.post("/simswap", async (req, res) => {
-  const username = req.body.username;
-  const user = users[username];
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
+app.post("/login", async (req, res) => {
   try {
-    const simSwapped = await checkSim(user.phoneNumber);
-    res.json({ swapped: simSwapped });
-  } catch (error) {
-    console.error("Error checking SIM swap:", error);
+    const { username, password } = req.body;
+    const user = users[username];
+    if (user && user.password === password) {
+      const simSwapped = await checkSim(user.phoneNumber);
+      if (simSwapped) {
+        return res.status(401).json({ message: "SIM Swapped" });
+      } else {
+        res.json({ message: "Success" });
+      }
+    } else {
+      res.status(401).json({ message: "Invalid username or password" });
+    }
+  } catch (err) {
+    console.error("Error during login:", err);
     res.status(500).json({ message: "Error processing request." });
-  }
-});
-
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
-  const user = users[username];
-  if (user && user.password === password) {
-    res.json({ message: "Success" });
-  } else {
-    res.status(401).json({ message: "Invalid username or password" });
   }
 });
 
