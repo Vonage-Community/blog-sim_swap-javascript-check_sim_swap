@@ -26,7 +26,7 @@ app.get("/main", (req, res) => {
   res.sendFile(path.join(__dirname, "views/main.html"));
 });
 
-const scope = "dpv:FraudPreventionAndDetection#check-sim-swap";
+const scope = "openid dpv:FraudPreventionAndDetection#check-sim-swap";
 const authReqUrl = "https://api-eu.vonage.com/oauth2/bc-authorize";
 const tokenUrl = "https://api-eu.vonage.com/oauth2/token";
 const simSwapApiUrl = "https://api-eu.vonage.com/camara/sim-swap/v040/check";
