@@ -1,5 +1,3 @@
-Here's the updated README based on your new requirements:
-
 # Check If Your Users Have Been SIM Swapped 
 
 ## Overview
