@@ -11,24 +11,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Function to send data to the server
   async function sendData(endpoint, data) {
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`Error during data request to ${endpoint}:`, errorData);
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return response.json();
-    } catch (error) {
-      console.error(`Error during data request to ${endpoint}:`, error);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const json = await response.json();
+
+    if (!response.ok) {
+      // Attach the parsed body so the caller can inspect the message
+      const error = new Error(`HTTP error! Status: ${response.status}`);
+      error.data = json;
       throw error;
     }
+
+    return json;
   }
 
   // Login handler
@@ -39,21 +39,17 @@ document.addEventListener("DOMContentLoaded", function () {
       const password = passwordInput.value.trim();
 
       try {
-        const loginResponse = await sendData("/login", {
-          username,
-          password,
-        });
-        if (loginResponse.message == "SIM Swapped") {
-          showModal(); // Show warning modal if SIM swapped
-        }
-        else if (loginResponse.message !== "Success") {
-          alert("Invalid username or password.");
-        } else {
+        const loginResponse = await sendData("/login", { username, password });
+        if (loginResponse.message === "Success") {
           window.location.href = "/main";
         }
       } catch (error) {
-        console.error("Error during login:", error);
-        alert("Login process failed.");
+        if (error.data?.message === "SIM Swapped") {
+          showModal(); // Show warning modal if SIM swapped
+        } else {
+          console.error("Error during login:", error);
+          alert("Invalid username or password.");
+        }
       }
     });
   }
