@@ -1,92 +1,71 @@
 require("dotenv").config();
 const path = require("path");
 const express = require("express");
-const axios = require("axios");
+const { IdentityInsights } = require("@vonage/identity-insights");
+const fs = require("fs");
+
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
-// This is a demo example with the fake credentials of user one, in a real
-// world example you'd have to store your credentials safely.
 const users = {
-  user1: {
-    username: "user1",
-    password: "123",
-    phoneNumber: process.env.PHONE_NUMBER,
-  },
+  user1: { password: "123", phoneNumber: process.env.PHONE_NUMBER }
 };
 
-// Serve the index.html file
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "views/index.html"));
-});
+const APPLICATION_ID = process.env.VONAGE_APPLICATION_ID;
+const PRIVATE_KEY = process.env.VONAGE_PRIVATE_KEY;
+const PERIOD = process.env.PERIOD;
 
-// Serve the main.html file
-app.get("/main", (req, res) => {
-  res.sendFile(path.join(__dirname, "views/main.html"));
-});
-
-const scope = "openid dpv:FraudPreventionAndDetection#check-sim-swap";
-const authReqUrl = "https://api-eu.vonage.com/oauth2/bc-authorize";
-const tokenUrl = "https://api-eu.vonage.com/oauth2/token";
-const simSwapApiUrl = "https://api-eu.vonage.com/camara/sim-swap/v040/check";
-
-// Authenticate function for SIM Swap API
-async function authenticate(phone, scope) {
-  const authReqResponse = await axios.post(
-    authReqUrl,
-    {
-      login_hint: phone,
-      scope: scope,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.JWT}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
-  );
-  const tokenResponse = await axios.post(
-    tokenUrl,
-    {
-      auth_req_id: authReqResponse.data.auth_req_id,
-      grant_type: "urn:openid:params:grant-type:ciba",
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.JWT}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
-  );
-  return tokenResponse.data.access_token;
+// Bootstrap Step
+if (!APPLICATION_ID || !PRIVATE_KEY) {
+  console.error("VONAGE_APPLICATION_ID or VONAGE_PRIVATE_KEY not set");
+  process.exit(1);
 }
+
+const keyContent = fs.existsSync(PRIVATE_KEY)
+  ? fs.readFileSync(PRIVATE_KEY, "utf8")
+  : PRIVATE_KEY;
+
+if (!keyContent) {
+  console.error(
+    "INVALID private key. Check if the file exists or the environment variable is correctly set"
+  );
+  process.exit(1);
+}
+
+const identityClient = new IdentityInsights({
+  applicationId: APPLICATION_ID,
+  privateKey: keyContent,
+});
 
 async function checkSim(phoneNumber) {
-  const accessToken = await authenticate(phoneNumber, scope);
   try {
-    const response = await axios.post(
-      simSwapApiUrl,
-      {
-        phoneNumber: phoneNumber,
-        maxAge: process.env.MAX_AGE,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+    const resp = await identityClient.getIdentityInsights({
+      phoneNumber: phoneNumber,
+      purpose: "FraudPreventionAndDetection",
+      insights: {
+        format: {},
+        originalCarrier: {},
+        currentCarrier: {},
+        simSwap: {
+          period: parseInt(PERIOD),
         },
-      }
-    );
-    return response.data.swapped;
+      },
+    });
+
+    return resp.insights?.simSwap?.isSwapped === true;
   } catch (error) {
-    console.error(
-      "SIM swap check error:",
-      error.response?.data || error.message
-    );
-    throw error;
+    console.warn("Identity Insights SDK call failed:", error && error.message);
   }
 }
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "index.html"));
+});
+
+app.get("/main", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "main.html"));
+});
 
 app.post("/login", async (req, res) => {
   try {
